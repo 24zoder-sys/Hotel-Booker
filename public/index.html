@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Luxe Haven | Hotel Room Booking System</title>
+<meta name="description" content="Full-stack Hotel Room Booking System with real-time availability search, double-booking prevention, and reservation management."/>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        fontFamily: {
+          headline: ["Inter", "sans-serif"],
+          display:  ["Inter", "sans-serif"],
+          body:     ["Plus Jakarta Sans", "sans-serif"],
+          label:    ["Inter", "sans-serif"],
+          "serif-luxury": ["Cinzel", "serif"]
+        },
+        borderRadius: {
+          DEFAULT: "0.25rem",
+          lg: "0.5rem",
+          xl: "0.75rem",
+          full: "9999px"
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  .gold-gradient-bg { background: linear-gradient(135deg,#f7df94 0%,#d4af37 50%,#aa841c 100%); }
+  .gold-gradient-text { background:linear-gradient(135deg,#fce8a6 0%,#d4af37 55%,#b8860b 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .gold-glow { box-shadow:0 0 25px -5px rgba(212,175,55,.35); }
+  .gold-glow-hover:hover { box-shadow:0 10px 30px -5px rgba(212,175,55,.25); }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24; }
+  .tab-pane { display:none; animation:fadeUp .3s ease; }
+  .tab-pane.active { display:block; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes toastIn { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
+  .toast-enter { animation:toastIn .3s cubic-bezier(.34,1.56,.64,1); }
+</style>
+</head>
+<body class="bg-[#07090e] text-[#f8fafc] font-body antialiased min-h-screen overflow-x-hidden">
+
+<!-- Ambient glows -->
+<div class="fixed top-0 left-1/4 w-[600px] h-[600px] bg-[#d4af37]/5 rounded-full blur-[140px] pointer-events-none -z-10"></div>
+<div class="fixed bottom-1/4 right-10 w-[500px] h-[500px] bg-[#38bdf8]/5 rounded-full blur-[160px] pointer-events-none -z-10"></div>
+
+<!-- ════════════════════════════════════ TOAST CONTAINER ════════════════════════════════════ -->
+<div id="toastContainer" class="fixed bottom-6 right-6 z-[200] flex flex-col gap-3 max-w-sm" aria-live="polite"></div>
+
+<!-- ════════════════════════════════════════ HEADER ════════════════════════════════════════ -->
+<header class="sticky top-0 z-50 bg-[#0b0f19]/85 backdrop-blur-md border-b border-[#d4af37]/20 shadow-2xl shadow-black/50">
+  <div class="flex justify-between items-center w-full px-6 py-3.5 max-w-7xl mx-auto gap-4">
+
+    <!-- Brand -->
+    <a class="flex items-center gap-3 group shrink-0" href="#" id="brandLogoBtn">
+      <div class="w-10 h-10 rounded-lg border border-[#d4af37]/40 bg-[#121a2b]/80 flex items-center justify-center text-[#d4af37] group-hover:border-[#d4af37] transition-colors">
+        <span class="material-symbols-outlined text-2xl" style="font-variation-settings:'FILL' 1">hotel_class</span>
+      </div>
+      <div>
+        <span class="font-serif-luxury text-xl font-bold tracking-wider gold-gradient-text block leading-none">LUXE HAVEN</span>
+        <span class="text-[9px] tracking-[0.2em] text-[#d4af37]/80 uppercase font-semibold">Boutique Hotel &amp; Suites</span>
+      </div>
+    </a>
+
+    <!-- Center nav tabs -->
+    <nav class="hidden md:flex items-center gap-1 bg-[#07090e]/70 p-1.5 rounded-full border border-[#d4af37]/20 backdrop-blur-lg">
+      <button data-tab="roomsTab" class="nav-tab px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 text-white/70 hover:text-[#d4af37]">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">bed</span>Rooms &amp; Suites
+      </button>
+      <button data-tab="searchTab" class="nav-tab px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 text-white/70 hover:text-[#d4af37]">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">search</span>Search Dates
+      </button>
+      <button data-tab="bookingsTab" class="nav-tab px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 text-white/70 hover:text-[#d4af37]">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">calendar_check</span>Reservations
+        <span id="bookingsBadge" class="ml-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+      </button>
+      <button data-tab="addRoomTab" class="nav-tab px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 text-white/70 hover:text-[#d4af37]">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">add_circle</span>Add Room
+      </button>
+      <button data-tab="statsTab" class="nav-tab px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 text-white/70 hover:text-[#d4af37]">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">bar_chart</span>Dashboard
+      </button>
+    </nav>
+
+    <!-- Right actions -->
+    <div class="flex items-center gap-2.5 shrink-0">
+      <button id="openEdgeModalBtn" class="hidden lg:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#d4af37]/30 text-xs font-semibold text-[#d4af37] hover:bg-[#d4af37]/10 hover:border-[#d4af37] transition-all">
+        <span class="material-symbols-outlined text-sm">science</span>Edge Tests
+      </button>
+      <button id="openBookModalBtn" class="px-4 py-2 rounded-lg gold-gradient-bg text-[#07090e] font-semibold text-xs tracking-wide shadow-lg shadow-[#d4af37]/25 hover:brightness-110 flex items-center gap-1.5 transition-all">
+        <span class="material-symbols-outlined text-base">calendar_month</span>Book a Stay
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════ HERO ════════════════════════════════════════ -->
+<section class="relative min-h-[580px] flex items-center justify-center pt-8 pb-16 px-6">
+  <div class="absolute inset-0 bg-cover bg-center -z-20 opacity-25" style="background-image:url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1600&q=80')"></div>
+  <div class="absolute inset-0 bg-gradient-to-b from-[#0b0f19]/90 via-[#07090e]/85 to-[#07090e] -z-10"></div>
+  <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-80 bg-[#d4af37]/10 blur-[130px] rounded-full pointer-events-none -z-10"></div>
+
+  <div class="max-w-6xl mx-auto w-full text-center flex flex-col items-center">
+    <!-- Badge -->
+    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#121a2b]/90 border border-[#d4af37]/40 backdrop-blur-xl shadow-lg shadow-[#d4af37]/10 mb-6">
+      <span class="material-symbols-outlined text-[#d4af37] text-base" style="font-variation-settings:'FILL' 1">star</span>
+      <span class="text-xs uppercase tracking-[0.2em] font-semibold text-[#f8fafc]/90">5-Star Luxury Experience</span>
+      <span class="material-symbols-outlined text-[#d4af37] text-base" style="font-variation-settings:'FILL' 1">star</span>
+    </div>
+
+    <h1 class="font-serif-luxury text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white max-w-4xl leading-[1.15] mb-4">
+      Experience Extraordinary <span class="gold-gradient-text">Comfort &amp; Hospitality</span>
+    </h1>
+    <p class="font-body text-slate-300 text-sm md:text-lg max-w-2xl font-light mb-10 leading-relaxed">
+      Seamless room reservations with real-time availability and smart double-booking prevention.
+    </p>
+
+    <!-- Search Card -->
+    <div class="w-full max-w-5xl bg-[#121a2b]/85 backdrop-blur-2xl border border-[#d4af37]/30 rounded-2xl p-5 md:p-6 shadow-2xl shadow-black/80 gold-glow">
+      <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end text-left" id="heroSearchForm">
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">calendar_today</span>Check-In Date
+          </label>
+          <input id="heroCheckIn" type="date" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">event_repeat</span>Check-Out Date
+          </label>
+          <input id="heroCheckOut" type="date" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">king_bed</span>Suite Type
+          </label>
+          <select id="heroRoomType" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all">
+            <option value="All">All Types</option>
+            <option value="Single">Single Room</option>
+            <option value="Double">Double Room</option>
+            <option value="Deluxe">Deluxe Room</option>
+            <option value="Suite">Suite</option>
+            <option value="Family Suite">Family Suite</option>
+            <option value="Presidential Suite">Presidential Suite</option>
+          </select>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">group</span>Guests
+          </label>
+          <select id="heroGuests" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all">
+            <option value="1">1 Guest</option>
+            <option value="2" selected>2 Guests</option>
+            <option value="3">3 Guests</option>
+            <option value="4">4+ Guests</option>
+          </select>
+        </div>
+        <div>
+          <button type="submit" class="w-full h-[41px] gold-gradient-bg text-[#07090e] font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg shadow-[#d4af37]/30 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-base">travel_explore</span>Check Dates
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Highlights strip -->
+<section class="max-w-7xl mx-auto px-6 -mt-4 mb-16">
+  <div class="bg-[#121a2b]/60 backdrop-blur-xl border border-[#d4af37]/20 rounded-2xl py-6 px-6 sm:px-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y md:divide-y-0 md:divide-x divide-[#d4af37]/15">
+    <div class="flex flex-col items-center p-2">
+      <span class="material-symbols-outlined text-[#d4af37] text-xl mb-1" style="font-variation-settings:'FILL' 1">verified</span>
+      <span class="font-serif-luxury text-2xl font-bold text-white">98%</span>
+      <p class="text-xs text-slate-400 tracking-wide">Guest Satisfaction</p>
+    </div>
+    <div class="flex flex-col items-center p-2">
+      <span class="material-symbols-outlined text-[#d4af37] text-xl mb-1">concierge</span>
+      <span class="font-serif-luxury text-2xl font-bold text-white">24/7</span>
+      <p class="text-xs text-slate-400 tracking-wide">Royal Concierge</p>
+    </div>
+    <div class="flex flex-col items-center p-2">
+      <span class="material-symbols-outlined text-[#d4af37] text-xl mb-1" style="font-variation-settings:'FILL' 1">restaurant_menu</span>
+      <span class="font-serif-luxury text-2xl font-bold text-white">Michelin</span>
+      <p class="text-xs text-slate-400 tracking-wide">Private Dining</p>
+    </div>
+    <div class="flex flex-col items-center p-2">
+      <span class="material-symbols-outlined text-[#d4af37] text-xl mb-1">spa</span>
+      <span class="font-serif-luxury text-2xl font-bold text-white">Private</span>
+      <p class="text-xs text-slate-400 tracking-wide">Thermal Spa &amp; Wellness</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════ TABS ════════════════════════════════════════ -->
+<main class="max-w-7xl mx-auto px-6 pb-24">
+
+  <!-- ═══ TAB 1: ROOMS ═══ -->
+  <div id="roomsTab" class="tab-pane active">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-[#d4af37]/20 gap-4">
+      <div>
+        <div class="flex items-center gap-2 text-[#d4af37] text-xs font-semibold uppercase tracking-widest mb-1.5">
+          <span class="w-6 h-[1px] bg-[#d4af37]"></span>Curated Sanctuaries
+        </div>
+        <h2 class="font-serif-luxury text-2xl md:text-4xl font-bold text-white">Rooms &amp; Suites Collection</h2>
+        <p class="text-slate-400 text-xs mt-1">Browse all available rooms. Click Book Now to reserve instantly.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+          <input id="roomFilterSearch" type="text" placeholder="Search room no., type, amenities..." class="bg-[#0b0f19] border border-[#d4af37]/20 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] w-56 transition-all"/>
+        </div>
+        <select id="roomFilterType" class="bg-[#0b0f19] border border-[#d4af37]/20 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-[#d4af37]">
+          <option value="All">All Types</option>
+          <option value="Single">Single</option>
+          <option value="Double">Double</option>
+          <option value="Deluxe">Deluxe</option>
+          <option value="Suite">Suite</option>
+          <option value="Family Suite">Family Suite</option>
+          <option value="Presidential Suite">Presidential Suite</option>
+        </select>
+        <select id="roomFilterStatus" class="bg-[#0b0f19] border border-[#d4af37]/20 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-[#d4af37]">
+          <option value="All">All Statuses</option>
+          <option value="Available">Available</option>
+          <option value="Maintenance">Maintenance</option>
+        </select>
+        <button id="refreshRoomsBtn" class="p-2 bg-[#0b0f19] hover:bg-[#121a2b] border border-[#d4af37]/30 text-[#d4af37] rounded-lg transition-colors" title="Refresh">
+          <span class="material-symbols-outlined text-base">refresh</span>
+        </button>
+      </div>
+    </div>
+    <div id="roomsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div class="col-span-3 text-center py-16"><div class="inline-block w-10 h-10 border-4 border-[#d4af37]/20 border-t-[#d4af37] rounded-full animate-spin mb-4"></div><p class="text-slate-400">Loading luxury rooms...</p></div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 2: SEARCH AVAILABILITY ═══ -->
+  <div id="searchTab" class="tab-pane">
+    <div class="flex items-end justify-between mb-8 pb-4 border-b border-[#d4af37]/20">
+      <div>
+        <div class="flex items-center gap-2 text-[#d4af37] text-xs font-semibold uppercase tracking-widest mb-1.5">
+          <span class="w-6 h-[1px] bg-[#d4af37]"></span>Live Availability Check
+        </div>
+        <h2 class="font-serif-luxury text-2xl md:text-4xl font-bold text-white">Search by Date Range</h2>
+        <p class="text-slate-400 text-xs mt-1">Cross-examines active reservations — only 100% free rooms shown.</p>
+      </div>
+    </div>
+
+    <div class="bg-[#121a2b]/70 border border-[#d4af37]/25 backdrop-blur-xl rounded-xl p-6 mb-10">
+      <form id="dateSearchForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Check-In *</label>
+          <input id="searchCheckIn" type="date" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Check-Out *</label>
+          <input id="searchCheckOut" type="date" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Room Type</label>
+          <select id="searchType" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all">
+            <option value="All">Any Type</option>
+            <option value="Single">Single</option>
+            <option value="Double">Double</option>
+            <option value="Deluxe">Deluxe</option>
+            <option value="Suite">Suite</option>
+            <option value="Family Suite">Family Suite</option>
+            <option value="Presidential Suite">Presidential Suite</option>
+          </select>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Min Guests</label>
+          <input id="searchCapacity" type="number" min="1" max="10" value="1" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="flex-1 h-[41px] gold-gradient-bg text-[#07090e] font-bold text-xs rounded-lg shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-base">search</span>Find Rooms
+          </button>
+          <button type="button" id="clearSearchBtn" class="h-[41px] px-3 border border-[#d4af37]/30 text-xs font-semibold text-[#d4af37] rounded-lg hover:bg-[#d4af37]/10 transition-all">Clear</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="searchMetaBanner" class="hidden flex items-center justify-between bg-emerald-950/40 border border-emerald-500/30 px-5 py-3 rounded-xl mb-6">
+      <span id="searchResultText" class="text-emerald-300 text-xs font-medium"></span>
+      <span id="searchCountBadge" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-3 py-1 rounded-full font-bold"></span>
+    </div>
+
+    <div id="searchResultsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div class="col-span-3 text-center py-16">
+        <span class="material-symbols-outlined text-5xl text-slate-600 block mb-3">calendar_search</span>
+        <h3 class="text-white font-serif-luxury text-xl mb-1">Choose your dates above</h3>
+        <p class="text-slate-400 text-sm">Our system verifies real-time availability before showing results.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 3: RESERVATIONS ═══ -->
+  <div id="bookingsTab" class="tab-pane">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-[#d4af37]/20 gap-4">
+      <div>
+        <div class="flex items-center gap-2 text-[#d4af37] text-xs font-semibold uppercase tracking-widest mb-1.5">
+          <span class="w-6 h-[1px] bg-[#d4af37]"></span>Reservation Management
+        </div>
+        <h2 class="font-serif-luxury text-2xl md:text-4xl font-bold text-white">Guest Reservations</h2>
+        <p class="text-slate-400 text-xs mt-1">Track, review, and cancel reservations in real-time via AJAX.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+          <input id="bookingSearchInput" type="text" placeholder="Guest, email, booking ref..." class="bg-[#0b0f19] border border-[#d4af37]/20 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] w-56 transition-all"/>
+        </div>
+        <select id="bookingStatusFilter" class="bg-[#0b0f19] border border-[#d4af37]/20 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-[#d4af37]">
+          <option value="All">All Statuses</option>
+          <option value="CONFIRMED">Confirmed Only</option>
+          <option value="CANCELLED">Cancelled Only</option>
+        </select>
+        <button id="refreshBookingsBtn" class="p-2 bg-[#0b0f19] hover:bg-[#121a2b] border border-[#d4af37]/30 text-[#d4af37] rounded-lg transition-colors" title="Refresh">
+          <span class="material-symbols-outlined text-base">refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-[#0e1424]/70 border border-[#d4af37]/30 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="bg-[#131b2e] border-b border-[#d4af37]/20">
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5">Reference</th>
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5">Room</th>
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5">Guest</th>
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5">Stay Dates</th>
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5">Nights</th>
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5">Total</th>
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5">Status</th>
+              <th class="text-[#d4af37] text-[10px] uppercase tracking-wider font-semibold py-4 px-5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bookingsTableBody">
+            <tr><td colspan="8" class="text-center py-16 text-slate-400 text-sm">Loading reservations...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="bookingsSummaryBar" class="bg-[#131b2e]/70 border-t border-[#d4af37]/15 px-5 py-3 text-[11px] text-slate-400 flex items-center gap-3"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 4: ADD ROOM ═══ -->
+  <div id="addRoomTab" class="tab-pane">
+    <div class="mb-8 pb-4 border-b border-[#d4af37]/20">
+      <div class="flex items-center gap-2 text-[#d4af37] text-xs font-semibold uppercase tracking-widest mb-1.5">
+        <span class="w-6 h-[1px] bg-[#d4af37]"></span>Room Administration
+      </div>
+      <h2 class="font-serif-luxury text-2xl md:text-4xl font-bold text-white">Add New Room Record</h2>
+      <p class="text-slate-400 text-xs mt-1">Create hotel rooms with custom pricing, amenities, and configuration.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8 items-start">
+      <!-- Form -->
+      <div class="bg-[#121a2b]/70 border border-[#d4af37]/20 backdrop-blur-xl rounded-2xl p-6">
+        <form id="addRoomForm">
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="space-y-1.5">
+              <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Room Number *</label>
+              <input id="newRoomNumber" type="text" placeholder="e.g. 104, 302B" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+              <p class="text-[10px] text-slate-500">Must be unique</p>
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Room Type *</label>
+              <select id="newRoomType" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all">
+                <option value="Single">Single Room</option>
+                <option value="Double">Double Room</option>
+                <option value="Deluxe" selected>Deluxe Room</option>
+                <option value="Suite">Suite</option>
+                <option value="Family Suite">Family Suite</option>
+                <option value="Presidential Suite">Presidential Suite</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="space-y-1.5">
+              <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Price / Night *</label>
+              <input id="newRoomPrice" type="number" min="10" step="0.01" placeholder="150.00" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Capacity</label>
+              <input id="newRoomCapacity" type="number" min="1" max="10" value="2" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Status</label>
+              <select id="newRoomStatus" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all">
+                <option value="Available" selected>Available</option>
+                <option value="Maintenance">Maintenance</option>
+              </select>
+            </div>
+          </div>
+          <div class="space-y-1.5 mb-4">
+            <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Amenities</label>
+            <input id="newRoomAmenities" type="text" placeholder="High-Speed Wi-Fi, King Bed, Smart TV, Minibar" value="High-Speed Wi-Fi, King Bed, Smart TV, Minibar, Air Conditioning" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+          </div>
+          <div class="space-y-1.5 mb-4">
+            <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Image URL</label>
+            <input id="newRoomImage" type="url" value="https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+            <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span class="text-[10px] text-slate-500">Presets:</span>
+              <button type="button" class="btn-preset text-[10px] px-2 py-0.5 bg-[#0b0f19] border border-[#d4af37]/20 rounded text-slate-300 hover:border-[#d4af37] hover:text-[#d4af37] transition-all" data-url="https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=800&q=80">Deluxe</button>
+              <button type="button" class="btn-preset text-[10px] px-2 py-0.5 bg-[#0b0f19] border border-[#d4af37]/20 rounded text-slate-300 hover:border-[#d4af37] hover:text-[#d4af37] transition-all" data-url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80">Suite</button>
+              <button type="button" class="btn-preset text-[10px] px-2 py-0.5 bg-[#0b0f19] border border-[#d4af37]/20 rounded text-slate-300 hover:border-[#d4af37] hover:text-[#d4af37] transition-all" data-url="https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80">Double</button>
+              <button type="button" class="btn-preset text-[10px] px-2 py-0.5 bg-[#0b0f19] border border-[#d4af37]/20 rounded text-slate-300 hover:border-[#d4af37] hover:text-[#d4af37] transition-all" data-url="https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=800&q=80">Presidential</button>
+            </div>
+          </div>
+          <div class="space-y-1.5 mb-6">
+            <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Description</label>
+            <textarea id="newRoomDescription" rows="3" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all resize-none">Elegant and well-appointed room featuring premium designer furnishings, ambient lighting, and bespoke hospitality essentials.</textarea>
+          </div>
+          <div class="flex gap-3">
+            <button type="submit" class="flex-1 py-2.5 gold-gradient-bg text-[#07090e] font-bold text-xs rounded-lg shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+              <span class="material-symbols-outlined text-base">add_circle</span>Add Room to Database
+            </button>
+            <button type="reset" class="px-4 py-2.5 border border-[#d4af37]/30 text-xs font-semibold text-[#d4af37] rounded-lg hover:bg-[#d4af37]/10 transition-all">Reset</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Live Preview -->
+      <div class="lg:sticky lg:top-24">
+        <div class="text-xs font-semibold uppercase tracking-widest text-[#d4af37] flex items-center gap-2 mb-4">
+          <span class="material-symbols-outlined text-sm">visibility</span>Live Card Preview
+        </div>
+        <article class="bg-[#121a2b]/80 border border-[#d4af37]/20 rounded-2xl overflow-hidden backdrop-blur-xl gold-glow">
+          <div class="relative h-56 overflow-hidden">
+            <img id="previewImg" src="https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80" alt="Preview" class="w-full h-full object-cover"/>
+            <div class="absolute inset-0 bg-gradient-to-t from-[#121a2b] via-transparent to-black/30"></div>
+            <div class="absolute top-4 left-4">
+              <span id="previewStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-950/80 border border-emerald-500/50 text-emerald-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Available
+              </span>
+            </div>
+            <div class="absolute bottom-4 right-4">
+              <span class="px-3.5 py-1.5 rounded-lg gold-gradient-bg text-[#07090e] font-bold text-xs shadow-lg">
+                $<span id="previewPrice">150</span> <span class="font-normal text-[10px]">/ night</span>
+              </span>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="flex items-center justify-between text-xs text-[#d4af37] font-semibold mb-1">
+              <span>ROOM <span id="previewRoomNo">104</span></span>
+              <span class="flex items-center gap-1 text-slate-300 text-[11px]">
+                <span class="material-symbols-outlined text-sm">person</span>Max <span id="previewCapacity">2</span>
+              </span>
+            </div>
+            <h3 class="font-serif-luxury text-xl font-bold text-white mb-2"><span id="previewType">Deluxe Room</span></h3>
+            <p class="text-xs text-slate-300 line-clamp-2 mb-4 font-light leading-relaxed" id="previewDesc">Elegant room with premium designer furnishings...</p>
+            <div class="flex flex-wrap gap-1.5" id="previewAmenities">
+              <span class="text-[10px] px-2.5 py-1 rounded-md bg-[#0b0f19] border border-white/10 text-slate-300">Free Wi-Fi</span>
+              <span class="text-[10px] px-2.5 py-1 rounded-md bg-[#0b0f19] border border-white/10 text-slate-300">King Bed</span>
+              <span class="text-[10px] px-2.5 py-1 rounded-md bg-[#0b0f19] border border-white/10 text-slate-300">Smart TV</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 5: DASHBOARD ═══ -->
+  <div id="statsTab" class="tab-pane">
+    <div class="flex items-end justify-between mb-8 pb-4 border-b border-[#d4af37]/20">
+      <div>
+        <div class="flex items-center gap-2 text-[#d4af37] text-xs font-semibold uppercase tracking-widest mb-1.5">
+          <span class="w-6 h-[1px] bg-[#d4af37]"></span>Operations Intelligence
+        </div>
+        <h2 class="font-serif-luxury text-2xl md:text-4xl font-bold text-white">Hotel Operations Overview</h2>
+        <p class="text-slate-400 text-xs mt-1">Real-time statistics on room inventory, bookings, and revenue.</p>
+      </div>
+      <button id="refreshStatsBtn" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#d4af37]/30 text-xs font-semibold text-[#d4af37] hover:bg-[#d4af37]/10 transition-all">
+        <span class="material-symbols-outlined text-sm">refresh</span>Refresh
+      </button>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+      <div class="bg-[#121a2b]/70 border border-[#d4af37]/20 backdrop-blur-xl rounded-2xl p-5 flex items-center gap-4 gold-glow-hover">
+        <div class="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-400">
+          <span class="material-symbols-outlined text-2xl">hotel</span>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Total Rooms</span>
+          <div class="font-serif-luxury text-3xl font-bold text-white" id="statTotalRooms">—</div>
+          <span class="text-[10px] text-slate-500">Configured in SQLite</span>
+        </div>
+      </div>
+      <div class="bg-[#121a2b]/70 border border-[#d4af37]/20 backdrop-blur-xl rounded-2xl p-5 flex items-center gap-4 gold-glow-hover">
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400">
+          <span class="material-symbols-outlined text-2xl">check_circle</span>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Available Today</span>
+          <div class="font-serif-luxury text-3xl font-bold text-white" id="statAvailableNow">—</div>
+          <span class="text-[10px] text-slate-500">Ready for check-in</span>
+        </div>
+      </div>
+      <div class="bg-[#121a2b]/70 border border-[#d4af37]/20 backdrop-blur-xl rounded-2xl p-5 flex items-center gap-4 gold-glow-hover">
+        <div class="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-400">
+          <span class="material-symbols-outlined text-2xl">calendar_check</span>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Active Bookings</span>
+          <div class="font-serif-luxury text-3xl font-bold text-white" id="statActiveBookings">—</div>
+          <span class="text-[10px] text-slate-500">Confirmed reservations</span>
+        </div>
+      </div>
+      <div class="bg-[#121a2b]/70 border border-[#d4af37]/20 backdrop-blur-xl rounded-2xl p-5 flex items-center gap-4 gold-glow-hover">
+        <div class="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400">
+          <span class="material-symbols-outlined text-2xl">savings</span>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Total Revenue</span>
+          <div class="font-serif-luxury text-3xl font-bold text-white" id="statTotalRevenue">—</div>
+          <span class="text-[10px] text-slate-500">From confirmed bookings</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details cards -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-[#121a2b]/70 border border-[#d4af37]/20 backdrop-blur-xl rounded-2xl p-6">
+        <h3 class="font-serif-luxury text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#d4af37]">layers</span>Inventory by Room Category
+        </h3>
+        <div id="roomTypesDistribution" class="space-y-3"><p class="text-slate-400 text-sm">Loading...</p></div>
+      </div>
+      <div class="bg-[#121a2b]/70 border border-[#d4af37]/20 backdrop-blur-xl rounded-2xl p-6">
+        <h3 class="font-serif-luxury text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#d4af37]">shield_with_heart</span>Key System Capabilities
+        </h3>
+        <ul class="space-y-4 text-sm">
+          <li class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-emerald-400 mt-0.5" style="font-variation-settings:'FILL' 1">check_circle</span>
+            <div><strong class="text-white">Double-Booking Prevention</strong><br><span class="text-slate-400 text-xs">Overlap algorithm: <code class="bg-[#0b0f19] px-1.5 py-0.5 rounded text-[#d4af37]">check_in &lt; existing.check_out AND check_out &gt; existing.check_in</code></span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-emerald-400 mt-0.5" style="font-variation-settings:'FILL' 1">check_circle</span>
+            <div><strong class="text-white">Instant AJAX Cancellation</strong><br><span class="text-slate-400 text-xs">Dates released dynamically without page reload via <code class="bg-[#0b0f19] px-1.5 py-0.5 rounded text-[#d4af37]">DELETE /api/bookings/:id</code></span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-emerald-400 mt-0.5" style="font-variation-settings:'FILL' 1">check_circle</span>
+            <div><strong class="text-white">SQLite ACID Persistence</strong><br><span class="text-slate-400 text-xs">Relational schema with Foreign Keys and PRAGMA enforcement</span></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-emerald-400 mt-0.5" style="font-variation-settings:'FILL' 1">check_circle</span>
+            <div><strong class="text-white">Full RESTful Express.js API</strong><br><span class="text-slate-400 text-xs"><code class="bg-[#0b0f19] px-1.5 py-0.5 rounded text-[#d4af37]">GET/POST/PUT/DELETE</code> with JSON request/response</span></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ════════════════════════════════════════ FOOTER ════════════════════════════════════════ -->
+<footer class="bg-[#0b0f19] border-t border-[#d4af37]/20">
+  <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
+      <span class="font-serif-luxury text-lg font-bold text-[#d4af37]">Luxe Haven</span>
+      <span class="hidden sm:inline text-white/30">•</span>
+      <p class="font-body text-xs text-white/50">© 2026 Luxe Haven Hotel &amp; Suites · Full-Stack Node.js + SQLite Booking System</p>
+    </div>
+    <div class="flex flex-wrap items-center justify-center gap-4 text-xs text-white/50">
+      <code class="bg-[#121a2b] border border-[#d4af37]/20 px-2 py-0.5 rounded text-[#d4af37]">GET /api/rooms</code>
+      <code class="bg-[#121a2b] border border-[#d4af37]/20 px-2 py-0.5 rounded text-[#d4af37]">POST /api/bookings</code>
+      <code class="bg-[#121a2b] border border-[#d4af37]/20 px-2 py-0.5 rounded text-[#d4af37]">DELETE /api/bookings/:id</code>
+    </div>
+  </div>
+</footer>
+
+
+<!-- ════════════════════════════════════ BOOKING MODAL ════════════════════════════════════ -->
+<div id="bookingModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+  <div class="bg-[#111827]/95 backdrop-blur-xl border border-[#d4af37]/40 rounded-2xl shadow-[0_0_60px_rgba(212,175,55,0.15)] w-full max-w-[580px] max-h-[90vh] overflow-y-auto">
+    <div class="flex items-start justify-between p-6 border-b border-[#d4af37]/20">
+      <div>
+        <h3 class="font-serif-luxury text-2xl font-bold text-white">Reserve Your Stay</h3>
+        <p class="text-xs text-white/50 mt-1">Complete your details to secure the reservation.</p>
+      </div>
+      <button id="closeBookingModalBtn" class="text-slate-400 hover:text-white text-2xl leading-none ml-4 transition-colors">&times;</button>
+    </div>
+
+    <form id="reservationForm" class="p-6 space-y-4">
+      <!-- Conflict Alert -->
+      <div id="overlapConflictBanner" class="hidden bg-rose-950/50 border border-rose-500/50 rounded-xl p-3.5 flex items-start gap-3">
+        <span class="material-symbols-outlined text-rose-400 mt-0.5" style="font-variation-settings:'FILL' 1">warning</span>
+        <div>
+          <p class="text-rose-300 text-xs font-semibold" id="overlapConflictMsg">Conflict detected.</p>
+          <p class="text-rose-400/70 text-[11px] mt-0.5">Please choose different dates or select another room.</p>
+        </div>
+      </div>
+
+      <!-- Room Select -->
+      <div class="space-y-1.5">
+        <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Select Room *</label>
+        <select id="bookRoomSelect" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all">
+          <option value="">— Choose a Room —</option>
+        </select>
+      </div>
+
+      <!-- Dates -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Check-In *</label>
+          <input id="bookCheckIn" type="date" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Check-Out *</label>
+          <input id="bookCheckOut" type="date" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+      </div>
+
+      <!-- Pricing Summary -->
+      <div class="bg-black/40 border border-white/10 rounded-xl p-4">
+        <div class="flex justify-between text-xs text-white/60 mb-1"><span>Duration:</span><span id="calcNights">0 night(s)</span></div>
+        <div class="flex justify-between text-xs text-white/60 mb-2"><span>Rate per night:</span><span id="calcRate">$0.00</span></div>
+        <div class="border-t border-[#d4af37]/20 pt-2 flex justify-between items-center">
+          <span class="text-sm font-semibold text-white">Estimated Total:</span>
+          <span id="calcTotal" class="font-serif-luxury text-xl font-bold text-[#d4af37]">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Guest -->
+      <div class="space-y-1.5">
+        <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Guest Full Name *</label>
+        <input id="bookGuestName" type="text" placeholder="e.g. Alexander Vance" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Email *</label>
+          <input id="bookGuestEmail" type="email" placeholder="guest@example.com" required class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs uppercase tracking-widest text-[#d4af37] font-semibold">Phone</label>
+          <input id="bookGuestPhone" type="tel" placeholder="+1 (555) 000-0000" class="w-full bg-[#0b0f19] border border-[#d4af37]/25 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all"/>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center gap-3 pt-2 border-t border-[#d4af37]/15">
+        <button type="button" id="cancelModalBtn" class="px-5 py-2.5 border border-white/20 text-white/80 hover:border-[#d4af37]/60 hover:text-white rounded-lg text-xs font-semibold transition-all">Cancel</button>
+        <button type="submit" id="confirmBookingSubmitBtn" class="flex items-center gap-1.5 px-6 py-2.5 gold-gradient-bg text-[#07090e] font-bold text-xs rounded-lg shadow-lg hover:brightness-110 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-base">lock</span>Confirm &amp; Book Room
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════ RECEIPT MODAL ════════════════════════════════════ -->
+<div id="receiptModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+  <div class="bg-[#111827]/95 border border-emerald-500/40 rounded-2xl shadow-[0_0_60px_rgba(16,185,129,0.15)] w-full max-w-[520px]">
+    <div class="flex items-center justify-between p-6 border-b border-emerald-500/20">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-emerald-400 text-3xl" style="font-variation-settings:'FILL' 1">check_circle</span>
+        <h3 class="font-serif-luxury text-xl font-bold text-white">Reservation Confirmed!</h3>
+      </div>
+      <button id="closeReceiptModalBtn" class="text-slate-400 hover:text-white text-2xl leading-none transition-colors">&times;</button>
+    </div>
+    <div id="receiptModalContent" class="p-6"></div>
+    <div class="flex items-center justify-end gap-3 px-6 pb-6">
+      <button onclick="window.print()" class="px-4 py-2 border border-white/20 text-white/70 text-xs font-semibold rounded-lg hover:border-white/40 transition-all flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-sm">print</span>Print
+      </button>
+      <button id="dismissReceiptBtn" class="px-5 py-2 gold-gradient-bg text-[#07090e] font-bold text-xs rounded-lg hover:brightness-110 transition-all">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ EDGE CASE MODAL ═══════════════════════════════════ -->
+<div id="edgeCaseModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+  <div class="bg-[#111827]/95 backdrop-blur-xl border border-[#d4af37]/40 rounded-2xl shadow-[0_0_60px_rgba(212,175,55,0.15)] w-full max-w-[620px] max-h-[90vh] overflow-y-auto">
+    <div class="flex items-start justify-between p-6 border-b border-[#d4af37]/20">
+      <div>
+        <h3 class="font-serif-luxury text-2xl font-bold text-white flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#d4af37]">science</span>Edge Case Testing Suite
+        </h3>
+        <p class="text-xs text-white/50 mt-1">Live API calls with real HTTP status codes &amp; server responses.</p>
+      </div>
+      <button id="closeEdgeModalBtn" class="text-slate-400 hover:text-white text-2xl leading-none ml-4 transition-colors">&times;</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-xs text-slate-400">Click each test to execute a live API call against the Express server and observe the JSON response:</p>
+
+      <div class="flex items-center justify-between gap-4 py-3 border-b border-white/5">
+        <div><strong class="text-white text-sm">1. Double-Booking Overlap</strong><p class="text-xs text-slate-400 mt-0.5">Books room 101, then attempts overlapping dates. Expects <code class="text-[#d4af37]">HTTP 409 Conflict</code>.</p></div>
+        <button id="btnTestDoubleBooking" class="shrink-0 px-3 py-1.5 border border-[#d4af37]/30 text-[#d4af37] text-xs font-semibold rounded-lg hover:bg-[#d4af37]/10 transition-all">Run</button>
+      </div>
+      <div class="flex items-center justify-between gap-4 py-3 border-b border-white/5">
+        <div><strong class="text-white text-sm">2. Cancel Non-Existent Booking</strong><p class="text-xs text-slate-400 mt-0.5">Cancels booking ID <code class="text-[#d4af37]">999999</code>. Expects <code class="text-[#d4af37]">HTTP 404 Not Found</code>.</p></div>
+        <button id="btnTestCancelNonExistent" class="shrink-0 px-3 py-1.5 border border-[#d4af37]/30 text-[#d4af37] text-xs font-semibold rounded-lg hover:bg-[#d4af37]/10 transition-all">Run</button>
+      </div>
+      <div class="flex items-center justify-between gap-4 py-3 border-b border-white/5">
+        <div><strong class="text-white text-sm">3. Inverted Dates Validation</strong><p class="text-xs text-slate-400 mt-0.5">Check-out before check-in. Expects <code class="text-[#d4af37]">HTTP 400 Bad Request</code>.</p></div>
+        <button id="btnTestInvalidDates" class="shrink-0 px-3 py-1.5 border border-[#d4af37]/30 text-[#d4af37] text-xs font-semibold rounded-lg hover:bg-[#d4af37]/10 transition-all">Run</button>
+      </div>
+      <div class="flex items-center justify-between gap-4 py-3">
+        <div><strong class="text-white text-sm">4. Duplicate Room Number</strong><p class="text-xs text-slate-400 mt-0.5">Creates room "101" which already exists. Expects <code class="text-[#d4af37]">HTTP 409 Conflict</code>.</p></div>
+        <button id="btnTestDuplicateRoom" class="shrink-0 px-3 py-1.5 border border-[#d4af37]/30 text-[#d4af37] text-xs font-semibold rounded-lg hover:bg-[#d4af37]/10 transition-all">Run</button>
+      </div>
+
+      <!-- Console -->
+      <div class="bg-[#06090e] border border-white/10 rounded-xl overflow-hidden mt-2">
+        <div class="flex justify-between items-center bg-[#0f172a] px-4 py-2 border-b border-white/10">
+          <span class="text-xs text-[#d4af37] flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">terminal</span>Test Output Console</span>
+          <button id="clearConsoleBtn" class="text-xs text-slate-500 hover:text-white transition-colors">Clear</button>
+        </div>
+        <pre id="testOutputLog" class="p-4 font-mono text-xs text-sky-400 max-h-52 overflow-y-auto whitespace-pre-wrap break-all">Ready. Select a test case above to execute...</pre>
+      </div>
+    </div>
+    <div class="flex justify-end px-6 pb-6">
+      <button id="closeEdgeModalFooterBtn" class="px-6 py-2.5 gold-gradient-bg text-[#07090e] font-bold text-xs rounded-lg hover:brightness-110 transition-all">Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

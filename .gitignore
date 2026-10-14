@@ -1,0 +1,9 @@
+﻿node_modules/
+.env
+.env.*
+!.env.example
+/database/hotel.sqlite
+/database/hotel.sqlite-journal
+/database/hotel.sqlite-wal
+/database/hotel.sqlite-shm
+npm-debug.log*
